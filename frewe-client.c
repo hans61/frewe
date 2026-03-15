@@ -69,7 +69,9 @@
  * TODO: Handle rain counter overflow
  */
 
-// #define _XOPEN_SOURCE 1 /* was needed for strptime? */
+#define _XOPEN_SOURCE 1 /* was needed for strptime? */
+#define _USE_XOPEN 1
+#define _GNU_SOURCE 1
 
 #include <stdio.h>
 #include <string.h>
@@ -79,6 +81,7 @@
 #include <signal.h>
 #include <usb.h>
 #include <time.h>
+#include <ctype.h>
 #include <math.h>
 #include <elf.h> 
 #include <openssl/md5.h>
@@ -119,6 +122,22 @@ long diff_time(const struct timeval *tact, const struct timeval *tlast);
 char* URLencode(char *str);
 char* URLdecode(char *str);
 
+char *walarm_type[] =
+{	"HighOutdoorTemp", "LowOutdoorTemp", "HighWindchillTemp", "LowWindchillTemp", "HighDewTemp", "LowDewTemp", 
+	"HighIndoorTemp", "LowIndoorTemp", "HighOutdoorHumidity", "LowOutdoorHumidity", "HighIndoorHumidity", "LowIndoorHumidity", 
+	"HighRelPressure", "LowRelPressure", "HighWind", "LowWind", "HighGust", "LowGust", 
+	"HighRainHour", "LowRainHour", "HighRainDay", "LowRainDay", "HighIllumination", "LowIllumination", "HighUV", "LowUV"
+};
+
+struct walarm
+{	char *type;
+	float threshold;
+	char set;
+	char *url;
+	char *run;
+	char *email;
+} alm[MAX_ALARMS];
+
 struct wrecord
 {	time_t datetime;
 	char winddir[4];
@@ -141,6 +160,11 @@ typedef enum log_event
 	LOG_ERROR=4,
 	LOG_INFO=8
 } log_event;
+
+int read_cfg(char *fname);
+int ws_submit(char *server_url, char** filebuf);
+int ws_parse(uint8_t *buffer, uint8_t *buffer60, uint8_t *buffer0h, time_t curtime, int position, int last_age);
+int ws_alarm (struct wrecord *w, struct walarm *alm);
 
 FILE *_log_debug=NULL,*_log_warning=NULL,*_log_error=NULL,*_log_info=NULL;
 void logger(log_event event,char *function,char *msg,...);
@@ -194,21 +218,6 @@ struct wservice
 	{ "Wedaal", "Wedaal_Username", "Wedaal_StationPass", "http://www.wedaal.de/get_wetter.php?val=%x;%X;%O;%H;%L;%T;%W;%d;%Z;%Y;;;;;;;;;;;;;;;", NULL, NULL, 1, "", 0}
 };
 
-char *walarm_type[] =
-{	"HighOutdoorTemp", "LowOutdoorTemp", "HighWindchillTemp", "LowWindchillTemp", "HighDewTemp", "LowDewTemp", 
-	"HighIndoorTemp", "LowIndoorTemp", "HighOutdoorHumidity", "LowOutdoorHumidity", "HighIndoorHumidity", "LowIndoorHumidity", 
-	"HighRelPressure", "LowRelPressure", "HighWind", "LowWind", "HighGust", "LowGust", 
-	"HighRainHour", "LowRainHour", "HighRainDay", "LowRainDay", "HighIllumination", "LowIllumination", "HighUV", "LowUV"
-};
-
-struct walarm
-{	char *type;
-	float threshold;
-	char set;
-	char *url;
-	char *run;
-	char *email;
-} alm[MAX_ALARMS];
 
 
 //***************************************************************
